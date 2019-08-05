@@ -16,9 +16,22 @@
 
 package org.cloudfoundry.operations;
 
+import org.cloudfoundry.client.CloudFoundryClient;
+import org.cloudfoundry.client.v2.Metadata;
+import org.cloudfoundry.client.v2.organizations.ListOrganizationsRequest;
+import org.cloudfoundry.client.v2.organizations.ListOrganizationsResponse;
+import org.cloudfoundry.client.v2.organizations.OrganizationEntity;
+import org.cloudfoundry.client.v2.organizations.OrganizationResource;
+import org.cloudfoundry.client.v2.spaces.ListSpacesRequest;
+import org.cloudfoundry.client.v2.spaces.ListSpacesResponse;
+import org.cloudfoundry.client.v2.spaces.SpaceResource;
 import org.junit.Test;
+import reactor.core.publisher.Mono;
+import reactor.test.StepVerifier;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.cloudfoundry.operations.TestObjects.fill;
+import static org.mockito.Mockito.when;
 
 public final class DefaultCloudFoundryOperationsTest extends AbstractOperationsTest {
 
@@ -100,4 +113,69 @@ public final class DefaultCloudFoundryOperationsTest extends AbstractOperationsT
         assertThat(this.operations.userAdmin()).isNotNull();
     }
 
+    @Test
+    public void shouldNotCacheOrgIdWhenCacheDurationIsNotSet() {
+        requestOrganizations(this.cloudFoundryClient, TEST_ORGANIZATION_ID);
+
+        this.operations.getOrganizationId()
+            .as(StepVerifier::create)
+            .expectNext(TEST_ORGANIZATION_ID)
+            .verifyComplete();
+
+        requestOrganizations(this.cloudFoundryClient, "updated-organization-id");
+
+        this.operations.getOrganizationId()
+            .as(StepVerifier::create)
+            .expectNext("updated-organization-id")
+            .verifyComplete();
+    }
+
+    @Test
+    public void shouldNotCacheSpaceIdWhenCacheDurationIsNotSet() {
+        requestOrganizations(this.cloudFoundryClient, TEST_ORGANIZATION_ID);
+        requestSpaces(this.cloudFoundryClient, TEST_SPACE_ID);
+
+        this.operations.getSpaceId()
+            .as(StepVerifier::create)
+            .expectNext(TEST_SPACE_ID)
+            .verifyComplete();
+
+        requestSpaces(this.cloudFoundryClient, "updated-space-id");
+
+        this.operations.getSpaceId()
+            .as(StepVerifier::create)
+            .expectNext("updated-space-id")
+            .verifyComplete();
+    }
+
+    private static void requestOrganizations(CloudFoundryClient cloudFoundryClient, String organizationId) {
+        when(cloudFoundryClient.organizations()
+            .list(ListOrganizationsRequest.builder()
+                .name(TEST_ORGANIZATION_NAME)
+                .page(1)
+                .build()))
+            .thenReturn(Mono
+                .just(fill(ListOrganizationsResponse.builder())
+                    .resource(fill(OrganizationResource.builder(), "organization-")
+                        .metadata(fill(Metadata.builder()).id(organizationId).build())
+                        .entity(fill(OrganizationEntity.builder(), "organization-entity-")
+                            .build())
+                        .build())
+                    .build()));
+
+    }
+
+    private static void requestSpaces(CloudFoundryClient cloudFoundryClient, String spaceId) {
+        when(cloudFoundryClient.spaces()
+            .list(ListSpacesRequest.builder()
+                .name(TEST_SPACE_NAME)
+                .organizationId(TEST_ORGANIZATION_ID)
+                .page(1)
+                .build()))
+            .thenReturn(Mono
+                .just(fill(ListSpacesResponse.builder())
+                    .resource(fill(SpaceResource.builder()).metadata(fill(Metadata.builder()).id(spaceId).build())
+                        .build())
+                    .build()));
+    }
 }

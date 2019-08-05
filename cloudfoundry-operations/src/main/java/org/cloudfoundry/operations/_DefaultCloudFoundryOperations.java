@@ -215,7 +215,7 @@ abstract class _DefaultCloudFoundryOperations implements CloudFoundryOperations 
 
             return getCacheDuration()
                 .map(cached::cache)
-                .orElseGet(cached::cache);
+                .orElse(cached);
         } else {
             return Mono.error(new IllegalStateException("No organization targeted"));
         }
@@ -251,7 +251,7 @@ abstract class _DefaultCloudFoundryOperations implements CloudFoundryOperations 
 
             return getCacheDuration()
                 .map(cached::cache)
-                .orElseGet(cached::cache);
+                .orElse(cached);
         } else {
             return Mono.error(new IllegalStateException("No space targeted"));
         }
